@@ -1,11 +1,55 @@
 # Food Ordering System - Microservices
-1. Project Objective
-  Build an online food ordering system using Microservices Architecture, 
- supporting food browsing, order creation, and payment.
-2. Team Members
- Lê Đức Huy: User Service, Discovery Server, API Gateway
- Đặng Ngọc Thành: Food Service, Payment Service, Order Service
-3. General Architecture
-  The system consists of API Gateway, Eureka Service Discovery,
- User Service, Food Service, Order Service, and Payment Service.
- Each service manages its own MySQL database and communicates with other services through APIs.
+
+## 1. Project Objective
+
+An online food ordering system built using **Microservices Architecture**, supporting:
+
+* User management
+* Food browsing
+* Order creation
+* Payment processing
+
+## 2. Team Members
+
+| Member   | Responsibility                                  |
+| -------- | ----------------------------------------------- |
+| Member 1 | User Service, Order Service, API Gateway        |
+| Member 2 | Food Service, Payment Service, Discovery Server |
+
+## 3. General Architecture
+
+```text
+                         Client
+                           |
+                           v
+                    +-------------+
+                    | API Gateway |
+                    +------+------+
+                           |
+          +----------------+----------------+
+          |                |                |
+          v                v                v
+     User Service     Food Service     Order Service
+          |                |                |
+       MySQL             MySQL             MySQL
+                                             |
+                                             v
+                                      Payment Service
+                                             |
+                                           MySQL
+
+
+                    +------------------+
+                    | Eureka Discovery |
+                    +------------------+
+```
+
+### Main Components
+
+* **API Gateway** — Entry point for client requests.
+* **Eureka Discovery** — Service registration and discovery.
+* **User Service** — Manages users and accounts.
+* **Food Service** — Manages restaurants, food, and menu information.
+* **Order Service** — Manages carts, orders, and order status.
+* **Payment Service** — Handles payment requests and transactions.
+* **MySQL** — Stores data for each business service.
