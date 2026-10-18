@@ -21,6 +21,7 @@
         <option value="$PROJECT_DIR$/DiscoveryServer/pom.xml" />
         <option value="$PROJECT_DIR$/PaymentService/pom.xml" />
         <option value="$PROJECT_DIR$/UserService/pom.xml" />
+        <option value="$PROJECT_DIR$/services/PaymentService/pom.xml" />
       </set>
     </option>
   </component>
