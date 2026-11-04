@@ -33,8 +33,9 @@ public class FoodController {
     }
 
     @GetMapping("/search")
-    public List<FoodDTO> search(@RequestParam String keyword) {
-        return foodService.search(keyword);
+    public List<FoodDTO> search(@RequestParam(required = false) String keyword,
+                                @RequestParam(required = false) Long categoryId) {
+        return foodService.search(keyword, categoryId);
     }
 
     @PostMapping
@@ -53,5 +54,14 @@ public class FoodController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         foodService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+    @GetMapping("/stats/count")
+    public Long countFoods() {
+        return foodService.count();
+    }
+
+    @GetMapping("/stats/categories")
+    public List<Object[]> countFoodsByCategory() {
+        return foodService.countByCategory();
     }
 }

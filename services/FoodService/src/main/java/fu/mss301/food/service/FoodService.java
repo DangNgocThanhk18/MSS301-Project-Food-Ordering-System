@@ -35,9 +35,14 @@ public class FoodService {
                 .map(this::toDTO).collect(Collectors.toList());
     }
 
-    public List<FoodDTO> search(String keyword) {
-        return foodRepository.findByNameContainingIgnoreCase(keyword).stream()
-                .map(this::toDTO).collect(Collectors.toList());
+    public List<FoodDTO> search(String keyword, Long categoryId) {
+        return foodRepository.findAll().stream()
+                .filter(f -> keyword == null || keyword.isEmpty() ||
+                        f.getName().toLowerCase().contains(keyword.toLowerCase()) ||
+                        f.getDescription().toLowerCase().contains(keyword.toLowerCase()))
+                .filter(f -> categoryId == null || (f.getCategory() != null && f.getCategory().getId().equals(categoryId)))
+                .map(this::toDTO)
+                .collect(Collectors.toList());
     }
 
     public FoodDTO create(Food food, Long categoryId) {
@@ -70,7 +75,13 @@ public class FoodService {
         }
         foodRepository.deleteById(id);
     }
+    public Long count() {
+        return foodRepository.count();
+    }
 
+    public List<Object[]> countByCategory() {
+        return foodRepository.countFoodsGroupByCategory(); // Custom query
+    }
     private FoodDTO toDTO(Food f) {
         return new FoodDTO(
                 f.getId(), f.getName(), f.getDescription(), f.getPrice(), f.getImageUrl(),

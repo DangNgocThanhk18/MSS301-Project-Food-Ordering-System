@@ -2,15 +2,21 @@
 <project version="4">
   <component name="CompilerConfiguration">
     <annotationProcessing>
+      <profile default="true" name="Default" enabled="true" />
       <profile name="Maven default annotation processors profile" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="FoodService" />
         <module name="DiscoveryServer" />
-        <module name="OrderService" />
+        <module name="discovery-server" />
         <module name="ApiGatewayService" />
         <module name="UserService" />
+        <module name="service-user" />
+        <module name="api-gateway" />
+        <module name="FoodService" />
+        <module name="service-food" />
+        <module name="OrderService" />
+        <module name="service-order" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
@@ -25,6 +31,11 @@
       <module name="OrderService" options="-parameters" />
       <module name="PaymentService" options="-parameters" />
       <module name="UserService" options="-parameters" />
+      <module name="api-gateway" options="-parameters" />
+      <module name="discovery-server" options="-parameters" />
+      <module name="service-food" options="-parameters" />
+      <module name="service-order" options="-parameters" />
+      <module name="service-user" options="-parameters" />
     </option>
   </component>
 </project>

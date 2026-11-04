@@ -1,10 +1,20 @@
 package fu.mss301.order.entity;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "orders")
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class Order {
 
     @Id
@@ -14,40 +24,27 @@ public class Order {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "food_id", nullable = false)
-    private Long foodId;
-
-    @Column(nullable = false)
-    private Integer quantity;
-
-    @Column(name = "unit_price", precision = 15, scale = 2)
-    private BigDecimal unitPrice;
-
     @Column(name = "total_price", precision = 15, scale = 2)
     private BigDecimal totalPrice;
-
+    @Column(name = "status")
     private String status; // CREATED, PAID, CANCELLED
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    public Order() {}
+    @Column(name = "shipping_address", nullable = false)
+    private String shippingAddress;
 
-    // getters/setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public Long getUserId() { return userId; }
-    public void setUserId(Long userId) { this.userId = userId; }
-    public Long getFoodId() { return foodId; }
-    public void setFoodId(Long foodId) { this.foodId = foodId; }
-    public Integer getQuantity() { return quantity; }
-    public void setQuantity(Integer quantity) { this.quantity = quantity; }
-    public BigDecimal getUnitPrice() { return unitPrice; }
-    public void setUnitPrice(BigDecimal unitPrice) { this.unitPrice = unitPrice; }
-    public BigDecimal getTotalPrice() { return totalPrice; }
-    public void setTotalPrice(BigDecimal totalPrice) { this.totalPrice = totalPrice; }
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    @Column(name = "phone",nullable = false)
+    private String phone;
+
+    @Column(name="note",columnDefinition = "TEXT")
+    private String note;
+
+    @Column(name = "shipper_id")
+    private Long shipperId;
+
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
+    private List<OrderItem> items = new ArrayList<>();
 }

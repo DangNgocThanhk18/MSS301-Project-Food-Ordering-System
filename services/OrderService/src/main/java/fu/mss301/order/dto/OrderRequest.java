@@ -1,20 +1,22 @@
 package fu.mss301.order.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.List;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class OrderRequest {
     private Long userId;
-    private Long foodId;
-    private Integer quantity;
 
-    public OrderRequest() {}
-    public OrderRequest(Long userId, Long foodId, Integer quantity) {
-        this.userId = userId;
-        this.foodId = foodId;
-        this.quantity = quantity;
-    }
-    public Long getUserId() { return userId; }
-    public void setUserId(Long userId) { this.userId = userId; }
-    public Long getFoodId() { return foodId; }
-    public void setFoodId(Long foodId) { this.foodId = foodId; }
-    public Integer getQuantity() { return quantity; }
-    public void setQuantity(Integer quantity) { this.quantity = quantity; }
+    // THÔNG TIN GIAO HÀNG (Nằm ở đây mới đúng)
+    private String shippingAddress;
+    private String phone;
+    private String note;
+
+    // DANH SÁCH MÓN
+    private List<OrderItemRequest> items;
 }

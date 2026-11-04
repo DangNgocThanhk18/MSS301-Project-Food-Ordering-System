@@ -26,10 +26,13 @@ public class InvoiceController {
         return invoiceService.findByOrderId(orderId);
     }
 
+    // Trong InvoiceController.java
     @PostMapping
     public Invoice create(@RequestParam Long orderId,
                           @RequestParam(required = false) String paymentMethod) {
-        return invoiceService.createInvoice(orderId, paymentMethod);
+        // Nếu không truyền, mặc định là CASH (Thanh toán khi nhận)
+        String method = (paymentMethod == null || paymentMethod.isEmpty()) ? "COD" : paymentMethod;
+        return invoiceService.createInvoice(orderId, method);
     }
 
     @PatchMapping("/{id}/status")

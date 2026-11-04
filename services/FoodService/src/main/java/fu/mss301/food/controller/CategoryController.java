@@ -1,5 +1,6 @@
 package fu.mss301.food.controller;
 
+import fu.mss301.food.dto.CategoryDTO;
 import fu.mss301.food.entity.Category;
 import fu.mss301.food.service.CategoryService;
 import org.springframework.web.bind.annotation.*;
@@ -17,16 +18,20 @@ public class CategoryController {
     }
 
     @GetMapping
-    public List<Category> getAll() { return categoryService.findAll(); }
+    public List<CategoryDTO> getAll() {
+        return categoryService.findAll();
+    }
 
     @GetMapping("/{id}")
-    public Category getById(@PathVariable Long id) { return categoryService.findById(id); }
+    public CategoryDTO getById(@PathVariable Long id) {
+        return categoryService.findById(id);
+    }
 
     @PostMapping
     public Category create(@RequestBody Category c) { return categoryService.create(c); }
 
     @PutMapping("/{id}")
-    public Category update(@PathVariable Long id, @RequestBody Category c) {
+    public CategoryDTO update(@PathVariable Long id, @RequestBody CategoryDTO c) {
         return categoryService.update(id, c);
     }
 
