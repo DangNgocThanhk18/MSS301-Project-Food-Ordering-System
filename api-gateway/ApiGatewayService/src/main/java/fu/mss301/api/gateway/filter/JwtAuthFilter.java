@@ -1,4 +1,4 @@
-package fu.mss301.gateway.filter;
+package fu.mss301.api.gateway.filter;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -7,6 +7,7 @@ import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
@@ -26,7 +27,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     // Các endpoint công khai, không cần xác thực
     private static final List<String> PUBLIC_PATHS = List.of(
             "/api/users/register",
-            "/api/users/login"
+            "/api/users/login",
+            "/actuator/health"
     );
 
     @Override
@@ -34,8 +36,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getURI().getPath();
 
-        // 1. Cho qua các endpoint công khai
-        if (PUBLIC_PATHS.stream().anyMatch(path::startsWith)) {
+        // Cho preflight CORS và các endpoint công khai đi qua.
+        if (request.getMethod() == HttpMethod.OPTIONS || PUBLIC_PATHS.contains(path)) {
             return chain.filter(exchange);
         }
 

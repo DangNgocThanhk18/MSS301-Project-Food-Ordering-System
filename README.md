@@ -1,234 +1,155 @@
-# Food Ordering System - Microservices
+# Food Ordering System — Microservices
 
-## 1. Project Objective
+Hệ thống đặt món ăn trực tuyến gồm API Gateway, Eureka Discovery Server và ba business service: User, Food, Order. Mỗi business service có cơ sở dữ liệu riêng (MySQL khi chạy Docker, H2 in-memory khi chạy cục bộ) và Order Service gọi User/Food qua OpenFeign.
 
-An online food ordering system built using **Microservices Architecture**, supporting:
+## Kiến trúc và cổng dịch vụ
 
-- User management
-- Food browsing
-- Order creation
+| Thành phần | Cổng trên máy host | Ghi chú |
+| --- | ---: | --- |
+| API Gateway | 8080 | Điểm truy cập API chính |
+| Eureka Discovery | 8761 | Dashboard và service discovery |
+| User Service | 8081 | Đăng ký, đăng nhập, người dùng |
+| Food Service | 8082 | Danh mục và món ăn |
+| Order Service | 8083 | Đơn hàng và hoá đơn |
+| MySQL | Không công khai | Chỉ dùng trong Docker network `food-net` |
 
-## 2. Team Members
+## Chạy nhanh bằng Docker
 
-| Member   | Responsibility                                  |
-| -------- | ----------------------------------------------- |
-| Huy      | API Gateway, Discovery Server, User Service     |
-| Thành    | Food Service, Order Service                     |
+Yêu cầu Docker Desktop đang chạy. Đây là cách chạy khuyến nghị vì Docker tự tạo MySQL, chờ health check và khởi động các service theo đúng thứ tự.
 
-Both members are responsible for **docs** and **README.md**.
+```powershell
+docker compose up -d --build
+docker compose ps
+```
 
-## 3. General Architecture
+Kết quả mong đợi: cả sáu container có trạng thái `healthy`.
+
+```powershell
+Invoke-RestMethod http://localhost:8080/actuator/health
+# { "status": "UP" }
+```
+
+Mở Eureka Dashboard tại http://localhost:8761. Bốn service được đăng ký là `API-GATEWAY`, `USER-SERVICE`, `FOOD-SERVICE` và `ORDER-SERVICE`.
+
+MySQL không mở cổng ra máy host để tránh xung đột với các dự án khác. Khi cần truy cập DB trong container:
+
+```powershell
+docker compose exec mysql mysql -uroot -p123456
+```
+
+## Demo end-to-end qua Gateway
+
+Chỉ hai endpoint `/api/users/register` và `/api/users/login` cùng health check là công khai. Các API nghiệp vụ khác cần header `Authorization: Bearer <token>`.
+
+Chạy đoạn sau trong PowerShell sau khi các container đã `healthy`:
+
+```powershell
+$base = 'http://localhost:8080'
+$suffix = Get-Random -Minimum 100000000 -Maximum 999999999
+$email = "demo$suffix@example.com"
+$phone = "0$suffix"
+
+# 1. Register và login
+$user = Invoke-RestMethod -Method Post -Uri "$base/api/users/register" `
+  -ContentType 'application/json' `
+  -Body (@{
+    name = 'Demo User'; email = $email; phone = $phone
+    address = 'Ho Chi Minh City'; password = 'password123'
+  } | ConvertTo-Json)
+
+$login = Invoke-RestMethod -Method Post -Uri "$base/api/users/login" `
+  -ContentType 'application/json' `
+  -Body (@{ email = $email; password = 'password123' } | ConvertTo-Json)
+$headers = @{ Authorization = "Bearer $($login.token)" }
+
+# 2. Category và food
+$category = Invoke-RestMethod -Method Post -Uri "$base/api/categories" `
+  -Headers $headers -ContentType 'application/json' `
+  -Body (@{ name = "Noodles $suffix"; description = "Noodle category $suffix" } | ConvertTo-Json)
+
+$food = Invoke-RestMethod -Method Post -Uri "$base/api/foods?categoryId=$($category.id)" `
+  -Headers $headers -ContentType 'application/json' `
+  -Body (@{ name = 'Pho Bo'; description = 'Beef noodle soup'; price = 50000 } | ConvertTo-Json)
+
+# 3. Create order
+$order = Invoke-RestMethod -Method Post -Uri "$base/api/orders" `
+  -Headers $headers -ContentType 'application/json' `
+  -Body (@{
+    userId = $user.id; shippingAddress = 'Ho Chi Minh City'; phone = $phone
+    note = 'No chili'; items = @(@{ foodId = $food.id; quantity = 2 })
+  } | ConvertTo-Json -Depth 4)
+
+# 4. Create invoice và kiểm tra order
+$invoice = Invoke-RestMethod -Method Post `
+  -Uri "$base/api/invoices?orderId=$($order.id)&paymentMethod=CARD" -Headers $headers
+$orders = Invoke-RestMethod -Uri "$base/api/orders" -Headers $headers
+
+$order.totalPrice       # 100000.00
+$invoice.status          # PAID
+($orders | Where-Object id -eq $order.id).status  # PAID
+```
+
+## Chạy cục bộ bằng Maven
+
+Ba business service mặc định dùng profile `local` với H2 in-memory, nên không cần cài hay chạy MySQL tại `localhost:3306`. Dữ liệu local sẽ được xoá khi service dừng. Nếu Docker Compose đang chạy, hãy chạy `docker compose down` trước để giải phóng các cổng 8080–8083.
+
+Chạy năm terminal theo thứ tự sau:
+
+```powershell
+# 1. Discovery
+Set-Location discovery-server\DiscoveryServer
+.\mvnw.cmd spring-boot:run
+
+# 2. User Service
+Set-Location services\UserService
+.\mvnw.cmd spring-boot:run
+
+# 3. Food Service
+Set-Location services\FoodService
+.\mvnw.cmd spring-boot:run
+
+# 4. Order Service
+Set-Location services\OrderService
+.\mvnw.cmd spring-boot:run
+
+# 5. Gateway
+Set-Location api-gateway\ApiGatewayService
+.\mvnw.cmd spring-boot:run
+```
+
+Yêu cầu JDK 17+; kiểm tra Maven Wrapper bằng `./mvnw.cmd -version` trong một thư mục service. Các test của business service dùng H2 in-memory qua profile `test`, nên không cần MySQL:
+
+```powershell
+$projects = @(
+  'discovery-server\DiscoveryServer',
+  'api-gateway\ApiGatewayService',
+  'services\UserService',
+  'services\FoodService',
+  'services\OrderService'
+)
+foreach ($project in $projects) {
+  Push-Location $project
+  .\mvnw.cmd test
+  Pop-Location
+}
+```
+
+## Dừng hệ thống
+
+```powershell
+docker compose down       # Dừng container, giữ dữ liệu MySQL
+docker compose down -v    # Dừng và xoá volume dữ liệu MySQL
+```
+
+## Cấu trúc thư mục
 
 ```text
-                         Client
-                           |
-                           v
-                    +-------------+
-                    | API Gateway |
-                    |   :8080     |
-                    +------+------+
-                           |
-          +----------------+----------------+
-          |                |                |
-          v                v                v
-     User Service     Food Service     Order Service
-        :8081            :8082            :8083
-          |                |                |
-       user_db           food_db          order_db
-                       (Category,Food)   (Order,Invoice)
-                           ^                |
-                           |                |
-                           +----- REST -----+
-                              (OpenFeign)
-
-
-                    +------------------+
-                    | Eureka Discovery |
-                    |      :8761       |
-                    +------------------+
-```
-
-### Main Components
-
-- **API Gateway** — Entry point for client requests, routes to services via Eureka.
-- **Eureka Discovery** — Service registration and discovery.
-- **User Service** — Manages users and accounts (`User`).
-- **Food Service** — Manages categories and food (`Category`, `Food`).
-- **Order Service** — Manages orders and invoices (`Order`, `Invoice`); calls REST to User & Food.
-- **H2 / MySQL** — Stores data for each business service (separate DB per service).
-
-## 4. How to Run Locally
-
-### 4.1. Requirements
-
-- **JDK 17** (`java -version` ≥ 17)
-- **Maven 3.8+** (`mvn -version`)
-- Free ports: **8761, 8080, 8081, 8082, 8083**
-- (Optional) MySQL 8.x if you don't want to use the default H2 in-memory DB
-
-### 4.2. Clone & Build
-
-```bash
-git clone <repo-url>
-cd food-ordering-microservices
-
-# Optional: build all modules at once (if parent pom exists)
-mvn clean install -DskipTests
-```
-
-### 4.3. Start Services (in this order)
-
-Open **5 terminals** and run each command in its own terminal:
-
-**Terminal 1 — Discovery Server**
-```bash
-cd discovery-server
-mvn spring-boot:run
-```
-→ Open http://localhost:8761 (Eureka Dashboard must load).
-
-**Terminal 2 — API Gateway**
-```bash
-cd api-gateway
-mvn spring-boot:run
-```
-
-**Terminal 3 — User Service**
-```bash
-cd services/service-user
-mvn spring-boot:run
-```
-
-**Terminal 4 — Food Service**
-```bash
-cd services/service-food
-mvn spring-boot:run
-```
-
-**Terminal 5 — Order Service**
-```bash
-cd services/service-order
-mvn spring-boot:run
-```
-
-Wait ~30 seconds, then open **http://localhost:8761** — you should see **4 instances** registered:
-
-```
-API-GATEWAY
-USER-SERVICE
-FOOD-SERVICE
-ORDER-SERVICE
-```
-
-### 4.4. Quick Health Check
-
-```bash
-# Gateway health
-curl http://localhost:8080/actuator/health
-
-# List Gateway routes
-curl http://localhost:8080/actuator/gateway/routes
-
-# Services through Gateway
-curl http://localhost:8080/api/users
-curl http://localhost:8080/api/foods
-curl http://localhost:8080/api/orders
-```
-
-### 4.5. Demo End-to-End (through API Gateway :8080)
-
-```bash
-# 1) Create user
-curl -X POST http://localhost:8080/api/users \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Alice","email":"alice@example.com","phone":"0901234567","address":"HCM"}'
-
-# 2) Create category
-curl -X POST http://localhost:8080/api/categories \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Noodles","description":"Món nước"}'
-
-# 3) Create food in category 1
-curl -X POST "http://localhost:8080/api/foods?categoryId=1" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Pho Bo","description":"Beef noodle","price":50000}'
-
-# 4) Create order (Order Service calls REST to User + Food via Feign)
-curl -X POST http://localhost:8080/api/orders \
-  -H "Content-Type: application/json" \
-  -d '{"userId":1,"foodId":1,"quantity":2}'
-
-# 5) Create invoice for order 1
-curl -X POST "http://localhost:8080/api/invoices?orderId=1&paymentMethod=CARD"
-
-# 6) List all orders
-curl http://localhost:8080/api/orders
-```
-
-**Expected result after step 5:**
-- Order 1: `status = "PAID"`, `totalPrice = 100000`
-- Invoice 1: `amount = 100000`, `status = "PAID"`
-
-### 4.6. (Optional) Switch to MySQL
-
-By default each service uses **H2 in-memory**. To use MySQL, in each service's `src/main/resources/application.properties`, replace:
-
-```properties
-spring.datasource.url=jdbc:h2:mem:<dbname>;DB_CLOSE_DELAY=-1
-spring.datasource.driver-class-name=org.h2.Driver
-spring.datasource.username=sa
-spring.datasource.password=
-```
-
-with:
-
-```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/<dbname>?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
-spring.datasource.username=root
-spring.datasource.password=123456
-```
-
-And add `mysql-connector-j` dependency to that service's `pom.xml`.
-
-DB names per service:
-
-| Service       | DB name    |
-| ------------- | ---------- |
-| User Service  | `user_db`  |
-| Food Service  | `food_db`  |
-| Order Service | `order_db` |
-
-### 4.7. Stop All Services
-
-Press `Ctrl+C` in each of the 5 terminals.
-
-## 5. Technologies
-
-| Component            | Version                |
-| -------------------- | ---------------------- |
-| Java                 | 17                     |
-| Spring Boot          | 3.2.5                  |
-| Spring Cloud         | 2023.0.3               |
-| Eureka Server/Client | from Spring Cloud BOM  |
-| Spring Cloud Gateway | from Spring Cloud BOM  |
-| OpenFeign            | from Spring Cloud BOM  |
-| Resilience4j         | 2.2.0                  |
-| Database             | H2 (default) / MySQL   |
-| Build Tool           | Maven                  |
-
-## 6. Project Structure
-
-```text
-food-ordering-microservices/
-├── discovery-server/
-├── api-gateway/
-├── services/
-│   ├── service-user/
-│   ├── service-food/
-│   └── service-order/
-├── docs/
-│   ├── request-flow.md
-│   └── screenshots/
-└── README.md
+.
+├── api-gateway/ApiGatewayService
+├── discovery-server/DiscoveryServer
+├── services/UserService
+├── services/FoodService
+├── services/OrderService
+├── docker-compose.yml
+└── docs/
 ```

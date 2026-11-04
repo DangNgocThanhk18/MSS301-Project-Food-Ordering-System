@@ -93,6 +93,7 @@ public class OrderService {
             OrderItem item = new OrderItem();
             item.setOrder(fallbackOrder);
             item.setFoodId(itemReq.getFoodId());
+            item.setFoodName("Unavailable");
             item.setQuantity(itemReq.getQuantity());
             item.setUnitPrice(BigDecimal.ZERO); // Không có giá
             items.add(item);
